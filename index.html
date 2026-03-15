@@ -295,11 +295,11 @@
   <p class="hint">GitHub Personal Access Token (repo-Scope) fuer API-Zugriff:</p>
   <input id="setupToken" type="password" placeholder="ghp_xxxxxxxxxxxx">
   <p class="hint">Repository (owner/repo):</p>
-  <input id="setupRepo" type="text" placeholder="JaKo-OdyC/odyc-monorepo" value="">
+  <input id="setupRepo" type="text" placeholder="JaKo-OdyC/odyc-remote" value="">
   <p class="hint">Branch (Standard: main):</p>
   <input id="setupBranch" type="text" placeholder="main" value="main">
   <p class="hint">Pfad im Repo zu den Channel-Dateien:</p>
-  <input id="setupPath" type="text" placeholder="docs/remote/channel/" value="docs/remote/channel/">
+  <input id="setupPath" type="text" placeholder="channel/" value="channel/">
   <button onclick="saveSetup()">Verbinden</button>
 </div>
 
@@ -474,7 +474,7 @@
 // ============================================================
 const STORE_KEY = 'odyc-remote-config';
 let CFG = {
-  token: '', repo: '', branch: 'main', path: 'docs/remote/channel/',
+  token: '', repo: '', branch: 'main', path: 'channel/',
   autoRefresh: 60, // Sekunden
 };
 let pendingDecisions = {}; // {D-001: 'A', ...}
