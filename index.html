@@ -1,0 +1,1328 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1a1a2e">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>OdyC Remote</title>
+<style>
+  :root {
+    --bg: #1a1a2e;
+    --surface: #16213e;
+    --card: #0f3460;
+    --accent: #e94560;
+    --ok: #4ecca3;
+    --warn: #f0a500;
+    --text: #eee;
+    --dim: #8892b0;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 12px;
+    padding-top: env(safe-area-inset-top, 12px);
+    padding-bottom: env(safe-area-inset-bottom, 12px);
+  }
+
+  /* -- Header -- */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #333;
+  }
+  .header h1 { font-size: 1.3rem; font-weight: 700; }
+  .status-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: #555;
+    display: inline-block;
+    margin-right: 8px;
+  }
+  .status-dot.running { background: var(--ok); animation: pulse 2s infinite; }
+  .status-dot.paused { background: var(--warn); }
+  .status-dot.stopped { background: var(--accent); }
+  .status-dot.unknown { background: #555; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* -- Setup Panel -- */
+  .setup-panel {
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .setup-panel h2 { font-size: 1rem; margin-bottom: 12px; }
+  .setup-panel input {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #444;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+  }
+  .setup-panel .hint { font-size: 0.75rem; color: var(--dim); margin-bottom: 8px; }
+  .setup-panel button {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: none;
+    background: var(--accent);
+    color: white;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+
+  /* -- Heartbeat Card -- */
+  .heartbeat {
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  .hb-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    font-size: 0.85rem;
+  }
+  .hb-label { color: var(--dim); }
+  .hb-val { font-weight: 600; text-align: right; }
+  .hb-val.ok { color: var(--ok); }
+  .hb-val.warn { color: var(--warn); }
+  .hb-val.bad { color: var(--accent); }
+
+  /* -- Quick Actions -- */
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .action-btn {
+    padding: 14px 8px;
+    border-radius: 12px;
+    border: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    transition: transform 0.1s;
+  }
+  .action-btn:active { transform: scale(0.95); }
+  .action-btn .icon { font-size: 1.4rem; }
+  .btn-pause  { background: var(--warn); color: #111; }
+  .btn-resume { background: var(--ok); color: #111; }
+  .btn-status { background: var(--card); color: var(--text); border: 1px solid #444; }
+  .btn-kill   { background: var(--accent); color: white; }
+  .btn-local  { background: #533483; color: white; }
+  .btn-skip   { background: var(--card); color: var(--text); border: 1px solid #444; }
+  .btn-kill-safe {
+    background: var(--surface); color: var(--accent);
+    border: 1px solid var(--accent); font-size: 0.8rem;
+  }
+
+  /* -- Kill Confirm -- */
+  .kill-confirm {
+    background: #2a0a0e;
+    border: 2px solid var(--accent);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 12px;
+    animation: fadeIn 0.2s;
+  }
+  .kill-warn {
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 0.85rem;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; } }
+
+  /* -- Message Input -- */
+  .msg-input {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .msg-input input {
+    flex: 1;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid #444;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 0.95rem;
+  }
+  .msg-input button {
+    padding: 12px 16px;
+    border-radius: 10px;
+    border: none;
+    background: var(--accent);
+    color: white;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  /* -- Messages / Outbox -- */
+  .messages {
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 12px;
+    max-height: 40vh;
+    overflow-y: auto;
+  }
+  .messages h3 { font-size: 0.9rem; color: var(--dim); margin-bottom: 8px; }
+  .msg-item {
+    padding: 8px;
+    margin-bottom: 6px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    line-height: 1.4;
+  }
+  .msg-item.from-runner { background: var(--card); border-left: 3px solid var(--ok); }
+  .msg-item.from-handy  { background: #2a1a3e; border-left: 3px solid var(--accent); }
+  .msg-ts { color: var(--dim); font-size: 0.7rem; }
+  .msg-type { color: var(--warn); font-weight: 600; text-transform: uppercase; font-size: 0.7rem; }
+
+  /* -- Decision Queue -- */
+  .decisions { margin-bottom: 12px; }
+  .decision-card {
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 10px;
+    border-left: 4px solid var(--warn);
+  }
+  .dec-id { color: var(--warn); font-weight: 700; font-size: 0.85rem; }
+  .dec-thread { color: var(--dim); font-size: 0.75rem; }
+  .dec-text { font-size: 0.8rem; margin: 6px 0; line-height: 1.4; }
+  .dec-options { display: flex; gap: 6px; flex-wrap: wrap; }
+  .dec-opt {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid #444;
+    background: var(--card);
+    color: var(--text);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    min-width: 60px;
+    text-align: center;
+  }
+  .dec-opt:active { background: var(--accent); border-color: var(--accent); }
+  .dec-opt.selected { background: var(--ok); border-color: var(--ok); color: #111; }
+
+  /* -- Toast -- */
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%; transform: translateX(-50%);
+    background: var(--ok);
+    color: #111;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 100;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+  .toast.error { background: var(--accent); color: white; }
+
+  /* -- Tabs -- */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 12px;
+    overflow-x: auto;
+  }
+  .tab {
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: none;
+    background: var(--surface);
+    color: var(--dim);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .tab.active { background: var(--accent); color: white; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .refresh-btn {
+    background: none;
+    border: 1px solid #444;
+    color: var(--dim);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<!-- SETUP (shown first time) -->
+<div id="setupPanel" class="setup-panel" style="display:none;">
+  <h2>OdyC Remote einrichten</h2>
+  <p class="hint">GitHub Personal Access Token (repo-Scope) fuer API-Zugriff:</p>
+  <input id="setupToken" type="password" placeholder="ghp_xxxxxxxxxxxx">
+  <p class="hint">Repository (owner/repo):</p>
+  <input id="setupRepo" type="text" placeholder="JaKo-OdyC/odyc-monorepo" value="">
+  <p class="hint">Branch (Standard: main):</p>
+  <input id="setupBranch" type="text" placeholder="main" value="main">
+  <p class="hint">Pfad im Repo zu den Channel-Dateien:</p>
+  <input id="setupPath" type="text" placeholder="docs/remote/channel/" value="docs/remote/channel/">
+  <button onclick="saveSetup()">Verbinden</button>
+</div>
+
+<!-- MAIN UI (after setup) -->
+<div id="mainUI" style="display:none;">
+
+  <!-- Header -->
+  <div class="header">
+    <div style="display:flex;align-items:center;">
+      <span id="statusDot" class="status-dot unknown"></span>
+      <h1>OdyC Remote</h1>
+    </div>
+    <button class="refresh-btn" onclick="refreshAll()">Aktualisieren</button>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('control')">Steuerung</button>
+    <button class="tab" onclick="switchTab('messages')">Nachrichten</button>
+    <button class="tab" onclick="switchTab('decisions')">Decisions</button>
+    <button class="tab" onclick="switchTab('settings')">Setup</button>
+  </div>
+
+  <!-- TAB: Steuerung -->
+  <div id="tab-control" class="tab-content active">
+    <!-- Heartbeat -->
+    <div class="heartbeat" id="heartbeatCard">
+      <div class="hb-row">
+        <span class="hb-label">Status</span>
+        <span class="hb-val" id="hbStatus">--</span>
+      </div>
+      <div class="hb-row">
+        <span class="hb-label">Letzter Heartbeat</span>
+        <span class="hb-val" id="hbTime">--</span>
+      </div>
+      <div class="hb-row">
+        <span class="hb-label">Thread</span>
+        <span class="hb-val" id="hbThread">--</span>
+      </div>
+      <div class="hb-row">
+        <span class="hb-label">Fortschritt</span>
+        <span class="hb-val" id="hbProgress">--</span>
+      </div>
+      <div class="hb-row">
+        <span class="hb-label">Kosten heute</span>
+        <span class="hb-val" id="hbCost">--</span>
+      </div>
+      <div class="hb-row">
+        <span class="hb-label">Gesamt / Schnitt pro Tag</span>
+        <span class="hb-val" id="hbCostTotal">--</span>
+      </div>
+      <div class="hb-row">
+        <span class="hb-label">Decisions offen</span>
+        <span class="hb-val" id="hbDecisions">--</span>
+      </div>
+    </div>
+
+    <!-- Quick Actions (sichere Befehle) -->
+    <div class="actions">
+      <button class="action-btn btn-pause" onclick="sendCmd('pause')">
+        <span class="icon">&#9208;</span> Pause
+      </button>
+      <button class="action-btn btn-resume" onclick="sendCmd('resume')">
+        <span class="icon">&#9654;</span> Weiter
+      </button>
+      <button class="action-btn btn-status" onclick="sendCmd('status')">
+        <span class="icon">&#8505;</span> Status
+      </button>
+      <button class="action-btn btn-local" onclick="sendCmd('nur lokal')">
+        <span class="icon">&#127968;</span> Nur Lokal
+      </button>
+    </div>
+
+    <!-- Zweite Reihe: Skip (harmlos) + Kill (geschuetzt) -->
+    <div style="display:flex;gap:10px;margin-bottom:12px;">
+      <button class="action-btn btn-skip" style="flex:1;" onclick="promptSkip()">
+        <span class="icon">&#9193;</span> Skip Thread
+      </button>
+      <button class="action-btn btn-kill-safe" style="flex:1;" onclick="showKillConfirm()">
+        <span class="icon">&#9940;</span> Kill-Switch
+      </button>
+    </div>
+
+    <!-- Kill-Switch Bestaetigung (versteckt) -->
+    <div id="killConfirmPanel" class="kill-confirm" style="display:none;">
+      <p class="kill-warn">Autopilot wird GESTOPPT. Neustart nur vom PC moeglich!</p>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input id="killInput" type="text" placeholder="Tippe STOP zum Bestaetigen"
+               style="flex:1;padding:10px;border-radius:8px;border:2px solid var(--accent);
+                      background:var(--bg);color:var(--accent);font-size:0.95rem;
+                      font-weight:700;text-transform:uppercase;">
+        <button id="killExecBtn" class="action-btn btn-kill" disabled
+                onclick="executeKill()"
+                style="padding:10px 16px;opacity:0.4;">
+          Kill
+        </button>
+      </div>
+      <button onclick="hideKillConfirm()"
+              style="width:100%;margin-top:8px;padding:8px;border-radius:8px;
+                     border:1px solid #444;background:var(--surface);color:var(--dim);
+                     font-size:0.85rem;cursor:pointer;">
+        Abbrechen
+      </button>
+    </div>
+
+    <!-- Free-Text Input -->
+    <div class="msg-input">
+      <input id="msgInput" type="text" placeholder="Nachricht oder D-001:A D-002:B ..."
+             onkeydown="if(event.key==='Enter')sendFreeText()">
+      <button onclick="sendFreeText()">Senden</button>
+    </div>
+  </div>
+
+  <!-- TAB: Nachrichten -->
+  <div id="tab-messages" class="tab-content">
+    <div class="messages" id="messageList">
+      <h3>Nachrichten (Outbox + Inbox)</h3>
+      <div id="msgItems"><p style="color:var(--dim);font-size:0.85rem;">Lade...</p></div>
+    </div>
+  </div>
+
+  <!-- TAB: Decisions -->
+  <div id="tab-decisions" class="tab-content">
+    <div class="decisions" id="decisionList">
+      <h3 style="color:var(--dim);font-size:0.9rem;margin-bottom:8px;">Offene Entscheidungen</h3>
+      <div id="decItems"><p style="color:var(--dim);font-size:0.85rem;">Lade...</p></div>
+    </div>
+    <button class="action-btn btn-resume" style="width:100%;margin-top:8px;"
+            onclick="submitDecisions()">
+      <span class="icon">&#10004;</span> Entscheidungen senden
+    </button>
+  </div>
+
+  <!-- TAB: Setup -->
+  <div id="tab-settings" class="tab-content">
+    <div class="setup-panel">
+      <h2>Verbindung</h2>
+      <p class="hint">Token:</p>
+      <input id="setToken" type="password" placeholder="ghp_xxx">
+      <p class="hint">Repo (owner/repo):</p>
+      <input id="setRepo" type="text">
+      <p class="hint">Branch:</p>
+      <input id="setBranch" type="text">
+      <p class="hint">Channel-Pfad:</p>
+      <input id="setPath" type="text">
+      <p class="hint">Auto-Refresh (Sekunden, 0 = aus):</p>
+      <input id="setInterval" type="number" value="60" min="0" max="600">
+      <button onclick="saveSettings()">Speichern</button>
+    </div>
+
+    <!-- QR-Code zum Installieren -->
+    <div class="setup-panel" style="margin-top:12px;text-align:center;">
+      <h2>Auf Smartphone installieren</h2>
+      <p class="hint" style="margin-bottom:12px;">QR-Code scannen, dann "Zum Startbildschirm hinzufuegen"</p>
+      <canvas id="qrCanvas" width="240" height="240" style="border-radius:12px;background:#fff;padding:8px;max-width:100%;"></canvas>
+      <p class="hint" style="margin-top:8px;" id="qrUrl"></p>
+      <div style="margin-top:12px;text-align:left;">
+        <p class="hint"><strong>Android:</strong> Chrome &rarr; Menue (3 Punkte) &rarr; "App installieren"</p>
+        <p class="hint"><strong>iOS:</strong> Safari &rarr; Teilen &rarr; "Zum Home-Bildschirm"</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+
+<script>
+// ============================================================
+// CONFIG
+// ============================================================
+const STORE_KEY = 'odyc-remote-config';
+let CFG = {
+  token: '', repo: '', branch: 'main', path: 'docs/remote/channel/',
+  autoRefresh: 60, // Sekunden
+};
+let pendingDecisions = {}; // {D-001: 'A', ...}
+let autoRefreshTimer = null;
+
+// ============================================================
+// INIT
+// ============================================================
+function init() {
+  const saved = localStorage.getItem(STORE_KEY);
+  if (saved) {
+    try { CFG = {...CFG, ...JSON.parse(saved)}; } catch(e) {}
+  }
+  // Lokal-Modus: wenn auf localhost, braucht man kein Token
+  const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  CFG._localMode = isLocal && !CFG.token;
+
+  if (!isLocal && !CFG.token) {
+    document.getElementById('setupPanel').style.display = 'block';
+    document.getElementById('mainUI').style.display = 'none';
+  } else {
+    document.getElementById('setupPanel').style.display = 'none';
+    document.getElementById('mainUI').style.display = 'block';
+    fillSettings();
+    refreshAll();
+    startAutoRefresh();
+  }
+}
+
+function saveSetup() {
+  CFG.token = document.getElementById('setupToken').value.trim();
+  CFG.repo = document.getElementById('setupRepo').value.trim();
+  CFG.branch = document.getElementById('setupBranch').value.trim() || 'main';
+  CFG.path = document.getElementById('setupPath').value.trim() || 'channel/';
+  if (!CFG.path.endsWith('/')) CFG.path += '/';
+  localStorage.setItem(STORE_KEY, JSON.stringify(CFG));
+  init();
+}
+
+function fillSettings() {
+  document.getElementById('setToken').value = CFG.token;
+  document.getElementById('setRepo').value = CFG.repo;
+  document.getElementById('setBranch').value = CFG.branch;
+  document.getElementById('setPath').value = CFG.path;
+  document.getElementById('setInterval').value = CFG.autoRefresh;
+}
+
+function saveSettings() {
+  CFG.token = document.getElementById('setToken').value.trim();
+  CFG.repo = document.getElementById('setRepo').value.trim();
+  CFG.branch = document.getElementById('setBranch').value.trim() || 'main';
+  CFG.path = document.getElementById('setPath').value.trim() || 'channel/';
+  CFG.autoRefresh = parseInt(document.getElementById('setInterval').value) || 0;
+  if (!CFG.path.endsWith('/')) CFG.path += '/';
+  localStorage.setItem(STORE_KEY, JSON.stringify(CFG));
+  startAutoRefresh();
+  toast('Gespeichert');
+}
+
+// ============================================================
+// DATEI-ZUGRIFF (Lokal oder GitHub API)
+// ============================================================
+const API = 'https://api.github.com';
+
+async function fileGet(filePath) {
+  // Lokal-Modus: direkt vom HTTP-Server lesen
+  if (CFG._localMode) {
+    const resp = await fetch('channel/' + filePath);
+    if (resp.status === 404) return null;
+    if (!resp.ok) return null;
+    const content = await resp.text();
+    return { content, sha: null };
+  }
+  // GitHub API Modus
+  return ghGet(filePath);
+}
+
+async function filePut(filePath, content, message) {
+  if (CFG._localMode) {
+    // Lokal: kein Schreibzugriff via HTTP, Nachricht anzeigen
+    toast('Lokal-Modus: Schreiben nicht moeglich. Nutze --send CLI.', true);
+    return null;
+  }
+  return ghPut(filePath, content, message);
+}
+
+async function ghGet(filePath) {
+  const url = `${API}/repos/${CFG.repo}/contents/${CFG.path}${filePath}?ref=${CFG.branch}`;
+  const resp = await fetch(url, {
+    headers: {
+      'Authorization': `token ${CFG.token}`,
+      'Accept': 'application/vnd.github.v3+json',
+    }
+  });
+  if (resp.status === 404) return null;
+  if (!resp.ok) throw new Error(`GitHub API ${resp.status}: ${resp.statusText}`);
+  const data = await resp.json();
+  return {
+    content: atob(data.content.replace(/\n/g, '')),
+    sha: data.sha,
+  };
+}
+
+async function ghPut(filePath, content, message) {
+  const url = `${API}/repos/${CFG.repo}/contents/${CFG.path}${filePath}`;
+  // Check if file exists (need SHA for update)
+  let sha = undefined;
+  try {
+    const existing = await ghGet(filePath);
+    if (existing) sha = existing.sha;
+  } catch(e) {}
+
+  const body = {
+    message: message || `OdyC Remote: ${filePath}`,
+    content: btoa(unescape(encodeURIComponent(content))),
+    branch: CFG.branch,
+  };
+  if (sha) body.sha = sha;
+
+  const resp = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `token ${CFG.token}`,
+      'Accept': 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error(`GitHub PUT ${resp.status}: ${err}`);
+  }
+  return await resp.json();
+}
+
+// ============================================================
+// HEARTBEAT
+// ============================================================
+async function refreshHeartbeat() {
+  try {
+    const file = await fileGet('odyc-autopilot-heartbeat.json');
+    if (!file) {
+      setHeartbeat(null);
+      return;
+    }
+    const hb = JSON.parse(file.content);
+    setHeartbeat(hb);
+  } catch(e) {
+    console.error('Heartbeat-Fehler:', e);
+    setHeartbeat(null);
+  }
+}
+
+function setHeartbeat(hb) {
+  const dot = document.getElementById('statusDot');
+  if (!hb) {
+    dot.className = 'status-dot unknown';
+    ['hbStatus','hbTime','hbThread','hbProgress','hbCost','hbCostTotal','hbDecisions']
+      .forEach(id => document.getElementById(id).textContent = '--');
+    return;
+  }
+
+  const status = hb.status || 'unknown';
+  dot.className = 'status-dot ' + status;
+
+  const el = (id) => document.getElementById(id);
+  el('hbStatus').textContent = status;
+  el('hbStatus').className = 'hb-val ' + (status === 'running' ? 'ok' : status === 'paused' ? 'warn' : 'bad');
+
+  // Zeitdifferenz berechnen
+  if (hb.ts) {
+    const diff = Math.floor((Date.now() - new Date(hb.ts).getTime()) / 1000);
+    let ago;
+    if (diff < 60) ago = `vor ${diff}s`;
+    else if (diff < 3600) ago = `vor ${Math.floor(diff/60)}m`;
+    else if (diff < 86400) ago = `vor ${Math.floor(diff/3600)}h`;
+    else ago = `vor ${Math.floor(diff/86400)}d`;
+    el('hbTime').textContent = ago;
+    el('hbTime').className = 'hb-val ' + (diff < 300 ? 'ok' : diff < 1800 ? 'warn' : 'bad');
+  }
+
+  el('hbThread').textContent = hb.current_thread ? hb.current_thread.substring(0,20) + '...' : '--';
+  el('hbProgress').textContent = hb.progress || `${hb.threads_done || 0}/${hb.threads_total || '?'}`;
+  el('hbCost').textContent = hb.cost_today != null ? `${hb.cost_today.toFixed(3)} EUR` : '--';
+
+  // Gesamt + Schnitt pro Tag
+  if (hb.cost_total != null) {
+    const total = hb.cost_total.toFixed(2);
+    const avg = hb.cost_avg_day != null ? hb.cost_avg_day.toFixed(3) : null;
+    const budgetWarn = hb.cost_today >= 2.5; // Budget-Warnung ab 2.50 EUR/Tag
+    el('hbCostTotal').textContent = avg ? `${total} EUR / ${avg} EUR/Tag` : `${total} EUR`;
+    el('hbCostTotal').className = 'hb-val ' + (budgetWarn ? 'warn' : '');
+  } else {
+    el('hbCostTotal').textContent = '--';
+  }
+
+  el('hbDecisions').textContent = hb.decisions_pending || '0';
+}
+
+// ============================================================
+// MESSAGES (Outbox + Inbox)
+// ============================================================
+async function refreshMessages() {
+  const container = document.getElementById('msgItems');
+  let msgs = [];
+
+  try {
+    // Outbox lesen
+    const outbox = await fileGet('odyc-autopilot-outbox.jsonl');
+    if (outbox && outbox.content.trim()) {
+      outbox.content.trim().split('\n').forEach(line => {
+        try { const m = JSON.parse(line); m._src = 'runner'; msgs.push(m); } catch(e){}
+      });
+    }
+
+    // Inbox lesen
+    const inbox = await fileGet('odyc-autopilot-inbox.jsonl');
+    if (inbox && inbox.content.trim()) {
+      inbox.content.trim().split('\n').forEach(line => {
+        try { const m = JSON.parse(line); m._src = 'handy'; msgs.push(m); } catch(e){}
+      });
+    }
+  } catch(e) {
+    container.innerHTML = `<p style="color:var(--accent)">Fehler: ${e.message}</p>`;
+    return;
+  }
+
+  // Nach Zeitstempel sortieren (neueste oben)
+  msgs.sort((a, b) => (b.ts || '').localeCompare(a.ts || ''));
+
+  if (msgs.length === 0) {
+    container.innerHTML = '<p style="color:var(--dim)">Keine Nachrichten</p>';
+    return;
+  }
+
+  container.innerHTML = msgs.slice(0, 50).map(m => {
+    const cls = m._src === 'runner' ? 'from-runner' : 'from-handy';
+    const time = m.ts ? new Date(m.ts).toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'}) : '';
+    const type = m.type || m.cmd || '';
+    const text = m.msg || m.raw || m.args || '';
+    return `<div class="msg-item ${cls}">
+      <span class="msg-ts">${time}</span>
+      <span class="msg-type">${type}</span>
+      <div>${escHtml(text.substring(0, 200))}</div>
+    </div>`;
+  }).join('');
+}
+
+// ============================================================
+// DECISIONS
+// ============================================================
+async function refreshDecisions() {
+  const container = document.getElementById('decItems');
+  try {
+    const file = await fileGet('odyc-autopilot-decisions.json');
+    if (!file) {
+      container.innerHTML = '<p style="color:var(--dim)">Keine offenen Entscheidungen</p>';
+      return;
+    }
+    const decisions = JSON.parse(file.content);
+    if (!decisions.length) {
+      container.innerHTML = '<p style="color:var(--dim)">Alle entschieden</p>';
+      return;
+    }
+
+    container.innerHTML = decisions.filter(d => d.status === 'pending').map(d => {
+      const opts = d.options || [];
+      const optBtns = opts.map((o, i) => {
+        const letter = String.fromCharCode(65 + i); // A, B, C, D
+        const sel = pendingDecisions[d.decision_id] === letter ? 'selected' : '';
+        return `<button class="dec-opt ${sel}"
+                  onclick="selectDecision('${d.decision_id}','${letter}',this)"
+                  title="${escHtml(o.detail || '')}">${letter}: ${escHtml(o.label || o)}</button>`;
+      }).join('');
+
+      return `<div class="decision-card">
+        <div class="dec-id">D-${String(d.decision_id).padStart(3,'0')}</div>
+        <div class="dec-thread">${escHtml(d.thread_id || '')}</div>
+        <div class="dec-text">${escHtml((d.segment_text || '').substring(0, 150))}</div>
+        <div class="dec-options">${optBtns}</div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    container.innerHTML = `<p style="color:var(--accent)">Fehler: ${e.message}</p>`;
+  }
+}
+
+function selectDecision(id, letter, btn) {
+  // Toggle: nochmal klicken = abwaehlen
+  if (pendingDecisions[id] === letter) {
+    delete pendingDecisions[id];
+    btn.classList.remove('selected');
+  } else {
+    pendingDecisions[id] = letter;
+    // Geschwister-Buttons deselektieren
+    btn.parentElement.querySelectorAll('.dec-opt').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+  }
+}
+
+async function submitDecisions() {
+  const entries = Object.entries(pendingDecisions);
+  if (entries.length === 0) {
+    toast('Keine Entscheidungen ausgewaehlt', true);
+    return;
+  }
+  // Format: "D-001:A D-002:B"
+  const msg = entries.map(([id, letter]) =>
+    `D-${String(id).padStart(3,'0')}:${letter}`
+  ).join(' ');
+
+  await sendCmd(msg);
+  pendingDecisions = {};
+  toast(`${entries.length} Entscheidung(en) gesendet`);
+}
+
+// ============================================================
+// SEND COMMANDS
+// ============================================================
+async function sendCmd(cmd) {
+  try {
+    const entry = {
+      ts: new Date().toISOString(),
+      from: 'handy',
+      cmd: parseCmd(cmd),
+      args: cmd,
+      raw: cmd,
+    };
+
+    // An Inbox anhaengen
+    let current = '';
+    try {
+      const existing = await fileGet('odyc-autopilot-inbox.jsonl');
+      if (existing) current = existing.content;
+    } catch(e) {}
+
+    const newContent = current + JSON.stringify(entry) + '\n';
+    await filePut('odyc-autopilot-inbox.jsonl', newContent,
+      `OdyC Remote: ${entry.cmd}`);
+
+    toast(`Gesendet: ${cmd}`);
+  } catch(e) {
+    toast(`Fehler: ${e.message}`, true);
+  }
+}
+
+function parseCmd(msg) {
+  const lower = msg.trim().toLowerCase();
+  if (lower === 'status') return 'status';
+  if (lower === 'pause' || lower === 'stop') return 'pause';
+  if (['resume','weiter','fortsetzen'].includes(lower)) return 'resume';
+  if (['nur lokal','local-only','lokal'].includes(lower)) return 'local_only';
+  if (lower.startsWith('skip ')) return 'skip';
+  if (msg.includes('D-') && msg.includes(':')) return 'decide';
+  return 'note';
+}
+
+async function sendFreeText() {
+  const input = document.getElementById('msgInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+  await sendCmd(msg);
+  input.value = '';
+}
+
+// ---- Kill-Switch mit 2-Stufen-Bestaetigung ----
+function showKillConfirm() {
+  const panel = document.getElementById('killConfirmPanel');
+  panel.style.display = 'block';
+  const input = document.getElementById('killInput');
+  input.value = '';
+  document.getElementById('killExecBtn').disabled = true;
+  document.getElementById('killExecBtn').style.opacity = '0.4';
+  input.focus();
+  input.addEventListener('input', validateKillInput);
+}
+
+function hideKillConfirm() {
+  document.getElementById('killConfirmPanel').style.display = 'none';
+  const input = document.getElementById('killInput');
+  input.removeEventListener('input', validateKillInput);
+  input.value = '';
+}
+
+function validateKillInput() {
+  const val = document.getElementById('killInput').value.trim().toUpperCase();
+  const btn = document.getElementById('killExecBtn');
+  if (val === 'STOP') {
+    btn.disabled = false;
+    btn.style.opacity = '1';
+  } else {
+    btn.disabled = true;
+    btn.style.opacity = '0.4';
+  }
+}
+
+function executeKill() {
+  const val = document.getElementById('killInput').value.trim().toUpperCase();
+  if (val !== 'STOP') return;
+  sendCmd('pause');
+  hideKillConfirm();
+  toast('KILL-SWITCH aktiviert');
+}
+
+function promptSkip() {
+  const thread = prompt('Thread-ID zum Ueberspringen:');
+  if (thread) sendCmd('skip ' + thread);
+}
+
+// ============================================================
+// REFRESH
+// ============================================================
+async function refreshAll() {
+  await Promise.all([
+    refreshHeartbeat(),
+    refreshMessages(),
+    refreshDecisions(),
+  ]);
+}
+
+function startAutoRefresh() {
+  if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+  if (CFG.autoRefresh > 0) {
+    autoRefreshTimer = setInterval(refreshAll, CFG.autoRefresh * 1000);
+  }
+}
+
+// ============================================================
+// TABS
+// ============================================================
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+function escHtml(s) {
+  const div = document.createElement('div');
+  div.textContent = s;
+  return div.innerHTML;
+}
+
+function toast(msg, isError) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (isError ? ' error' : '');
+  setTimeout(() => el.className = 'toast', 2500);
+}
+
+// ============================================================
+// QR-CODE GENERATOR (minimal, kein externer Dienst)
+// Basiert auf QR-Code Model 2, Error Correction Level L
+// ============================================================
+const QR = (() => {
+  // Minimaler QR-Code-Generator fuer URLs (alphanumerisch + Sonderzeichen)
+  // Verwendet Canvas-API zum Zeichnen
+
+  function generate(text, canvas, moduleSize) {
+    moduleSize = moduleSize || 4;
+    // Verwende die QR-Code-API als Fallback-freie Loesung:
+    // Wir generieren den QR-Code als SVG-Path und rendern auf Canvas
+
+    const modules = encodeToModules(text);
+    const size = modules.length;
+    const padding = 4; // Quiet zone
+    const totalSize = (size + padding * 2) * moduleSize;
+    canvas.width = totalSize;
+    canvas.height = totalSize;
+
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, totalSize, totalSize);
+
+    ctx.fillStyle = '#000000';
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        if (modules[y][x]) {
+          ctx.fillRect((x + padding) * moduleSize, (y + padding) * moduleSize,
+                       moduleSize, moduleSize);
+        }
+      }
+    }
+  }
+
+  // ---- Byte-Mode QR Encoder (Version 1-6, ECC Level L) ----
+  function encodeToModules(text) {
+    const data = new TextEncoder().encode(text);
+    const len = data.length;
+
+    // Version-Auswahl (Byte Mode, ECC L)
+    const capacities = [0, 17, 32, 53, 78, 106, 134]; // Max bytes per Version 1-6
+    let version = 1;
+    for (let v = 1; v <= 6; v++) {
+      if (len <= capacities[v]) { version = v; break; }
+      if (v === 6) version = 6; // Clamp
+    }
+
+    const size = 17 + version * 4;
+    const modules = Array.from({length: size}, () => Array(size).fill(null));
+    const reserved = Array.from({length: size}, () => Array(size).fill(false));
+
+    // Finder Patterns
+    placeFinder(modules, reserved, 0, 0);
+    placeFinder(modules, reserved, size - 7, 0);
+    placeFinder(modules, reserved, 0, size - 7);
+
+    // Timing Patterns
+    for (let i = 8; i < size - 8; i++) {
+      setModule(modules, reserved, 6, i, i % 2 === 0);
+      setModule(modules, reserved, i, 6, i % 2 === 0);
+    }
+
+    // Alignment Pattern (Version 2+)
+    if (version >= 2) {
+      const alignPos = getAlignmentPositions(version);
+      for (const ay of alignPos) {
+        for (const ax of alignPos) {
+          if (reserved[ay][ax]) continue;
+          placeAlignment(modules, reserved, ay, ax);
+        }
+      }
+    }
+
+    // Dark module
+    setModule(modules, reserved, size - 8, 8, true);
+
+    // Reserve format & version info areas
+    reserveFormatArea(reserved, size);
+    if (version >= 7) reserveVersionArea(reserved, size);
+
+    // Encode data
+    const bits = encodeData(data, version);
+
+    // Place data bits
+    placeData(modules, reserved, bits, size);
+
+    // Apply best mask
+    let bestMask = 0, bestScore = Infinity;
+    for (let m = 0; m < 8; m++) {
+      const trial = modules.map(r => [...r]);
+      applyMask(trial, reserved, m, size);
+      writeFormatInfo(trial, m, size);
+      const score = evaluatePenalty(trial, size);
+      if (score < bestScore) { bestScore = score; bestMask = m; }
+    }
+    applyMask(modules, reserved, bestMask, size);
+    writeFormatInfo(modules, bestMask, size);
+
+    return modules;
+  }
+
+  function setModule(modules, reserved, row, col, val) {
+    modules[row][col] = val;
+    reserved[row][col] = true;
+  }
+
+  function placeFinder(modules, reserved, row, col) {
+    for (let dy = -1; dy <= 7; dy++) {
+      for (let dx = -1; dx <= 7; dx++) {
+        const r = row + dy, c = col + dx;
+        if (r < 0 || c < 0 || r >= modules.length || c >= modules.length) continue;
+        const inOuter = dy === 0 || dy === 6 || dx === 0 || dx === 6;
+        const inInner = dy >= 2 && dy <= 4 && dx >= 2 && dx <= 4;
+        const isBorder = dy === -1 || dy === 7 || dx === -1 || dx === 7;
+        setModule(modules, reserved, r, c, !isBorder && (inOuter || inInner));
+      }
+    }
+  }
+
+  function placeAlignment(modules, reserved, row, col) {
+    for (let dy = -2; dy <= 2; dy++) {
+      for (let dx = -2; dx <= 2; dx++) {
+        const isEdge = Math.abs(dy) === 2 || Math.abs(dx) === 2;
+        const isCenter = dy === 0 && dx === 0;
+        setModule(modules, reserved, row + dy, col + dx, isEdge || isCenter);
+      }
+    }
+  }
+
+  function getAlignmentPositions(version) {
+    if (version === 1) return [];
+    const positions = [6];
+    const last = 17 + version * 4 - 7;
+    if (version <= 6) {
+      positions.push(last);
+    }
+    return positions;
+  }
+
+  function reserveFormatArea(reserved, size) {
+    for (let i = 0; i < 8; i++) {
+      reserved[8][i] = true;
+      reserved[i][8] = true;
+      reserved[8][size - 1 - i] = true;
+      reserved[size - 1 - i][8] = true;
+    }
+    reserved[8][8] = true;
+  }
+
+  function reserveVersionArea(reserved, size) {
+    for (let i = 0; i < 6; i++) {
+      for (let j = 0; j < 3; j++) {
+        reserved[i][size - 11 + j] = true;
+        reserved[size - 11 + j][i] = true;
+      }
+    }
+  }
+
+  function encodeData(data, version) {
+    // ECC codeword counts (Level L) for versions 1-6
+    const eccCounts = [0, 7, 10, 15, 20, 26, 18];
+    const totalCW  = [0, 26, 44, 70, 100, 134, 172];
+    const dataCW   = totalCW[version] - eccCounts[version];
+
+    // Build data bitstream: Mode(0100) + Length + Data + Terminator + Padding
+    let bits = '';
+    bits += '0100'; // Byte mode
+    const lenBits = version <= 9 ? 8 : 16;
+    bits += data.length.toString(2).padStart(lenBits, '0');
+    for (const b of data) bits += b.toString(2).padStart(8, '0');
+
+    // Terminator
+    const maxBits = dataCW * 8;
+    const termLen = Math.min(4, maxBits - bits.length);
+    bits += '0'.repeat(termLen);
+
+    // Byte-align
+    while (bits.length % 8 !== 0) bits += '0';
+
+    // Pad codewords
+    const pads = ['11101100', '00010001'];
+    let pi = 0;
+    while (bits.length < maxBits) {
+      bits += pads[pi % 2];
+      pi++;
+    }
+
+    // Convert to codeword array
+    const codewords = [];
+    for (let i = 0; i < bits.length; i += 8) {
+      codewords.push(parseInt(bits.substring(i, i + 8), 2));
+    }
+
+    // Generate ECC
+    const ecc = generateECC(codewords.slice(0, dataCW), eccCounts[version]);
+
+    // Interleave (for versions 1-6 with single block, just concat)
+    const allCW = [...codewords.slice(0, dataCW), ...ecc];
+
+    // Convert back to bits
+    return allCW.map(c => c.toString(2).padStart(8, '0')).join('');
+  }
+
+  // Reed-Solomon ECC over GF(256)
+  function generateECC(data, eccCount) {
+    // GF(256) log/exp tables
+    const exp = new Uint8Array(256);
+    const log = new Uint8Array(256);
+    let v = 1;
+    for (let i = 0; i < 255; i++) {
+      exp[i] = v;
+      log[v] = i;
+      v <<= 1;
+      if (v >= 256) v ^= 0x11d;
+    }
+    exp[255] = exp[0];
+
+    function gfMul(a, b) {
+      if (a === 0 || b === 0) return 0;
+      return exp[(log[a] + log[b]) % 255];
+    }
+
+    // Generator polynomial
+    let gen = [1];
+    for (let i = 0; i < eccCount; i++) {
+      const newGen = new Array(gen.length + 1).fill(0);
+      const factor = exp[i];
+      for (let j = 0; j < gen.length; j++) {
+        newGen[j] ^= gen[j];
+        newGen[j + 1] ^= gfMul(gen[j], factor);
+      }
+      gen = newGen;
+    }
+
+    // Polynomial division
+    const result = new Uint8Array(eccCount);
+    const msg = new Uint8Array(data.length + eccCount);
+    for (let i = 0; i < data.length; i++) msg[i] = data[i];
+
+    for (let i = 0; i < data.length; i++) {
+      const coef = msg[i];
+      if (coef !== 0) {
+        for (let j = 0; j < gen.length; j++) {
+          msg[i + j] ^= gfMul(gen[j], coef);
+        }
+      }
+    }
+
+    for (let i = 0; i < eccCount; i++) {
+      result[i] = msg[data.length + i];
+    }
+
+    return Array.from(result);
+  }
+
+  function placeData(modules, reserved, bits, size) {
+    let bitIdx = 0;
+    let upward = true;
+
+    for (let right = size - 1; right >= 1; right -= 2) {
+      if (right === 6) right = 5; // Skip timing column
+      const rows = upward
+        ? Array.from({length: size}, (_, i) => size - 1 - i)
+        : Array.from({length: size}, (_, i) => i);
+
+      for (const row of rows) {
+        for (const col of [right, right - 1]) {
+          if (reserved[row][col]) continue;
+          modules[row][col] = bitIdx < bits.length ? bits[bitIdx] === '1' : false;
+          bitIdx++;
+        }
+      }
+      upward = !upward;
+    }
+  }
+
+  function applyMask(modules, reserved, maskNum, size) {
+    const maskFn = [
+      (r,c) => (r+c) % 2 === 0,
+      (r,c) => r % 2 === 0,
+      (r,c) => c % 3 === 0,
+      (r,c) => (r+c) % 3 === 0,
+      (r,c) => (Math.floor(r/2) + Math.floor(c/3)) % 2 === 0,
+      (r,c) => (r*c)%2 + (r*c)%3 === 0,
+      (r,c) => ((r*c)%2 + (r*c)%3) % 2 === 0,
+      (r,c) => ((r+c)%2 + (r*c)%3) % 2 === 0,
+    ][maskNum];
+
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) {
+        if (!reserved[r][c] && maskFn(r, c)) {
+          modules[r][c] = !modules[r][c];
+        }
+      }
+    }
+  }
+
+  function writeFormatInfo(modules, maskNum, size) {
+    // Format info: ECC Level L (01) + mask pattern
+    const formatData = (0b01 << 3) | maskNum;
+    // BCH(15,5) encoding
+    let bits = formatData << 10;
+    let gen = 0b10100110111;
+    for (let i = 14; i >= 10; i--) {
+      if (bits & (1 << i)) bits ^= gen << (i - 10);
+    }
+    const encoded = ((formatData << 10) | bits) ^ 0b101010000010010;
+
+    // Place format info
+    const formatBits = [];
+    for (let i = 14; i >= 0; i--) formatBits.push((encoded >> i) & 1);
+
+    // Around top-left finder
+    const positions1 = [[8,0],[8,1],[8,2],[8,3],[8,4],[8,5],[8,7],[8,8],
+                        [7,8],[5,8],[4,8],[3,8],[2,8],[1,8],[0,8]];
+    for (let i = 0; i < 15; i++) {
+      modules[positions1[i][0]][positions1[i][1]] = !!formatBits[i];
+    }
+
+    // Around other finders
+    const positions2 = [];
+    for (let i = 0; i < 7; i++) positions2.push([size - 1 - i, 8]);
+    for (let i = 0; i < 8; i++) positions2.push([8, size - 8 + i]);
+    for (let i = 0; i < 15; i++) {
+      modules[positions2[i][0]][positions2[i][1]] = !!formatBits[i];
+    }
+  }
+
+  function evaluatePenalty(modules, size) {
+    let penalty = 0;
+    // Simplified: just count adjacent same-color runs
+    for (let r = 0; r < size; r++) {
+      let run = 1;
+      for (let c = 1; c < size; c++) {
+        if (modules[r][c] === modules[r][c-1]) { run++; }
+        else { if (run >= 5) penalty += run - 2; run = 1; }
+      }
+      if (run >= 5) penalty += run - 2;
+    }
+    for (let c = 0; c < size; c++) {
+      let run = 1;
+      for (let r = 1; r < size; r++) {
+        if (modules[r][c] === modules[r-1][c]) { run++; }
+        else { if (run >= 5) penalty += run - 2; run = 1; }
+      }
+      if (run >= 5) penalty += run - 2;
+    }
+    return penalty;
+  }
+
+  return { generate };
+})();
+
+function renderQRCode() {
+  const canvas = document.getElementById('qrCanvas');
+  if (!canvas) return;
+
+  // URL bestimmen: aktuelle Seite oder GitHub Pages URL
+  let url = window.location.href;
+  // Wenn lokal: GitHub Pages URL aus Repo-Config ableiten
+  if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+    if (CFG.repo) {
+      const [owner, repo] = CFG.repo.split('/');
+      url = `https://${owner}.github.io/${repo}/remote/`;
+    } else {
+      url = 'https://jako-odyc.github.io/odyc-remote/';
+    }
+  }
+
+  document.getElementById('qrUrl').textContent = url;
+
+  try {
+    QR.generate(url, canvas, 5);
+  } catch(e) {
+    // Fallback: QR-Code als Bild von externem Dienst
+    console.warn('QR-Generierung fehlgeschlagen, nutze Fallback:', e);
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#666';
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('QR-Code konnte nicht', canvas.width/2, canvas.height/2 - 10);
+    ctx.fillText('generiert werden', canvas.width/2, canvas.height/2 + 10);
+    ctx.fillText(url, canvas.width/2, canvas.height/2 + 35);
+  }
+}
+
+// ============================================================
+// START
+// ============================================================
+init();
+renderQRCode();
+</script>
+
+</body>
+</html>

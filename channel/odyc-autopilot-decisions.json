@@ -1,0 +1,28 @@
+[
+  {
+    "decision_id": 1,
+    "thread_id": "test-thread-abc123",
+    "segment_text": "OdyC implementiert ein neuartiges epistemisches Klassifikationssystem, das auf der Unterscheidung von Wissensherkunft basiert.",
+    "conflict_type": "low_confidence",
+    "confidence": 0.45,
+    "status": "pending",
+    "options": [
+      {"label": "source", "detail": "Konfidenz: 0.45 — Quellenbasiert"},
+      {"label": "interpolated", "detail": "Konfidenz: 0.35 — Abgeleitet"},
+      {"label": "production", "detail": "Konfidenz: 0.15 — Eigenproduktion"},
+      {"label": "overgeneralized", "detail": "Konfidenz: 0.05 — Uebergeneralisiert"}
+    ]
+  },
+  {
+    "decision_id": 2,
+    "thread_id": "test-thread-def456",
+    "segment_text": "Die Triangulation ueber mehrere Modelle hinweg reduziert systematische Verzerrungen einzelner LLMs.",
+    "conflict_type": "model_divergence",
+    "confidence": 0.52,
+    "status": "pending",
+    "options": [
+      {"label": "source", "detail": "Konfidenz: 0.52 — 3/5 Modelle einig"},
+      {"label": "interpolated", "detail": "Konfidenz: 0.38 — 2/5 Modelle"}
+    ]
+  }
+]

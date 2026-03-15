@@ -1,0 +1,13 @@
+{
+  "status": "idle",
+  "ts": "2026-03-15T13:54:50.850099",
+  "pid": 0,
+  "current_thread": null,
+  "threads_done": 0,
+  "threads_total": 42,
+  "cost_today": 0.127,
+  "cost_total": 1.843,
+  "cost_avg_day": 0.368,
+  "decisions_pending": 2,
+  "msg": "Test-Heartbeat mit Kosten"
+}
